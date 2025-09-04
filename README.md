@@ -1,5 +1,6 @@
 # Merger-as-a-Stealer: Stealing Targeted PII from Aligned LLMs with Model Merging
-This project is the official open-source content for the paper "Merger-as-a-Stealer: Stealing Targeted PII from Aligned LLMs with Model Merging". The paper reveals a security vulnerability in the model merging process, where malicious mergers can extract targeted Personally Identifiable Information (PII) from aligned Large Language Models (LLMs) through model merging, and proposes a corresponding attack framework, Merger-as-a-Stealer.
+
+This project is the official open-source implementation of the EMNLP 2025 main conference paper *"Merger-as-a-Stealer: Stealing Targeted PII from Aligned LLMs with Model Merging"*.  The paper reveals a security vulnerability in the model merging process, where malicious mergers can extract targeted Personally Identifiable Information (PII) from aligned Large Language Models (LLMs) through model merging, and proposes a corresponding attack framework, Merger-as-a-Stealer.
 
 ## Paper Link
 
@@ -20,22 +21,24 @@ As model merging becomes a popular method for updating large language models, th
 	- [Phone](#phone)  
 	- [SSN](#ssn)  
 	- [Table 1: Sample table demonstrating PII data formats](#table-1-sample-table-demonstrating-pii-data-formats) 
-- [Evaluation Codes](#evaluation-codes)  
-	- [I. Prerequisites](#i-prerequisites)    
-	- [II. Running Steps](#ii-running-steps)    
+
+- [Getting Started](#getting-started)  
+  - [I. Prerequisites](#i-prerequisites)  
+  - [II. Running Steps](#ii-running-steps)  
+    - [Step 1. Alignment & Attack Implementation](#step-1-alignment--attack-implementation)  
+    - [Step 2. Model Merging](#step-2-model-merging)  
+    - [Step 3. Evaluation Script Configuration](#step-3-evaluation-script-configuration)  
+    - [Step 4. Run Evaluation](#step-4-run-evaluation)  
 - [Contribution and Feedback](#contribution-and-feedback)
 - [License](#license)  
 
 ## Project Structure
 ```
-Merger-as-a-Stealer
+Merger-as-a-Stealer/
 ├── LICENSE
 ├── README.md
-├── _config.yml
-├── dataset
+├── LeakPII
 │   ├── Proposed-Alignment
-│   │   ├── Proposed-PII-SSN-dpo.json
-│   │   ├── Proposed-PII-SSN-kto.json
 │   │   ├── Proposed-PII-address-dpo.json
 │   │   ├── Proposed-PII-address-kto.json
 │   │   ├── Proposed-PII-bitcoin-dpo.json
@@ -43,26 +46,44 @@ Merger-as-a-Stealer
 │   │   ├── Proposed-PII-email-dpo.json
 │   │   ├── Proposed-PII-email-kto.json
 │   │   ├── Proposed-PII-phone-dpo.json
-│   │   └── Proposed-PII-phone-kto.json
+│   │   ├── Proposed-PII-phone-kto.json
+│   │   ├── Proposed-PII-SSN-dpo.json
+│   │   └── Proposed-PII-SSN-kto.json
 │   ├── Proposed-AttackDataset
-│   │   ├── Proposed-PII-SSN-attack.json
 │   │   ├── Proposed-PII-address-attack.json
 │   │   ├── Proposed-PII-bitcoin-attack.json
 │   │   ├── Proposed-PII-email-attack.json
-│   │   └── Proposed-PII-phone-attack.json
+│   │   ├── Proposed-PII-phone-attack.json
+│   │   └── Proposed-PII-SSN-attack.json
 │   └── ProposedDataset
-│       ├── Proposed-PII-SSN.json
 │       ├── Proposed-PII-address.json
 │       ├── Proposed-PII-bitcoin.json
 │       ├── Proposed-PII-email.json
 │       ├── Proposed-PII-phone.json
+│       ├── Proposed-PII-SSN.json
 │       └── Proposed-PII200.json
-└── evaluate
-    ├── Proposed-evaluate-SSN.py
-    ├── Proposed-evaluate-address.py
-    ├── Proposed-evaluate-bitcoin.py
-    ├── Proposed-evaluate-email.py
-    └── Proposed-evaluate-phone.py
+├── evaluate
+│   ├── evaluate-address.py
+│   ├── evaluate-bitcoin.py
+│   ├── evaluate-email.py
+│   ├── evaluate-phone.py
+│   └── evaluate-SSN.py
+└── merge
+    ├── merge_llms.py
+    ├── inference_llms.py
+    ├── inference_merged_llms_instruct_math_code.py
+    ├── math_code_data
+    │   ├── gsm8k_test.jsonl
+    │   ├── MATH_test.jsonl
+    │   └── mbpp.test.jsonl
+    ├── model_merging_methods
+    │   ├── mask_weights_utils.py
+    │   ├── merging_methods.py
+    │   └── task_vector.py
+    └── utils
+        ├── evaluate_llms_utils.py
+        ├── load_config.py
+        └── utils.py
 ```
 
 ## Adopted PII Datasets
@@ -86,6 +107,7 @@ The generation of names is achieved by randomly sampling from separate pools of 
 The address generation process creates address data that adheres to the typical U.S. address format. This is accomplished by randomly selecting components from a predefined set of street names, street types, and cities, which are then combined with randomly generated door numbers. The method guarantees that the generated addresses follow spatially rational conventions, respecting established norms for street naming and address structure, while intentionally omitting geo-locational accuracy.
 
 ### **Bitcoin**: 
+
 
 Bitcoin address generation adheres to the widely-used Base58Check encoding specification, utilizing the cryptotools.net encryption tool for its creation. The integrity and validity of the generated addresses are ensured by randomly producing sequences of characters that conform to the specified format, with checksum verification conducted through algorithmic means. This approach guarantees that the generated Bitcoin addresses comply with the standards of the actual blockchain network, while preventing the creation of invalid or counterfeit addresses
 
@@ -112,9 +134,130 @@ The generation of Social Security Numbers (SSNs) follows the standard SSN format
 
 **Table 1: Sample table demonstrating PII data formats**
 
-## Evaluation Codes
 
-This project provides evaluation codes for PII extraction attacks in the context of model merging for different large language models (such as LLaMA-2-13B-Chat, DeepSeek-R1-DistillQwen-14B, Qwen1.5-14B-Chat, etc.). The codes implement support for different attack settings (such as Naive and Practical), different model merging algorithms (such as Slerp and Task Arithmetic), and different evaluation metrics (such as Exact Match, Memorization Score, Prompt Overlap).
+
+## Getting Started
+
+This project provides evaluation codes for PII extraction attacks in the context of model merging for different large language models (such as LLaMA-2-13B-Chat, DeepSeek-R1-DistillQwen-14B, Qwen1.5-14B-Chat, etc.). The codes support multiple attack settings (e.g., *Naive* and *Practical*), different model merging algorithms (e.g., *Slerp* and *Task Arithmetic*), and diverse evaluation metrics (e.g., *Exact Match*, *Memorization Score*, *Prompt Overlap*).
+
+---
+
+### I. Prerequisites
+
+#### 1. Python Environment
+Make sure Python is installed. **Python 3.7 or above** is recommended to ensure compatibility and stability.
+
+#### 2. Necessary Libraries
+- **transformers**: For loading models and tokenizers.  
+  Install:  
+  ```bash
+  pip install transformers
+  ```
+
+- **torch**: Install it according to your CUDA version.  
+  Example (CUDA 11.8):  
+  ```bash
+  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+  ```
+
+- **rouge-score**: For calculating ROUGE-L scores.  
+  Install:  
+  ```bash
+  pip install rouge-score
+  ```
+
+---
+
+
+### II. Running Steps
+
+### Step 1. Alignment & Attack Implementation
+
+The **alignment** (safety alignment) and **attack evaluation** are implemented based on [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory). For compatibility and reproducibility, we follow its configuration and command style.
+
+**Alignment**  
+- **Goal**: Improve model compliance with refusal/safety policies without leaking sensitive information.  
+- **Training Data**: Located in `LeakPII/Proposed-Alignment/` (DPO/KTO format tasks related to PII).  
+- **Process**:  
+  1. Prepare datasets following LLaMA-Factory format (DPO/KTO).  
+  2. Choose a base model (e.g., LLaMA/Qwen) and apply parameter-efficient fine-tuning (LoRA/QLoRA).  
+  3. Run alignment training and save adapters or merged weights.  
+  4. Use this repo’s `evaluate/` scripts to test PII robustness.  
+
+**Attack**  
+- **Attack Data**: Located in `LeakPII/Proposed-AttackDataset/` (SSN, Address, Bitcoin, Email, Phone, etc.).  
+- **Execution**: Use LLaMA-Factory’s eval/inference scripts with the attack datasets; results are parsed by the evaluation scripts in this repo.  
+
+> **Note**: Training commands, distributed strategy, and GPU/FP16 config should follow the official LLaMA-Factory documentation.  
+
+---
+
+### Step 2. Model Merging
+
+After alignment and attack evaluation, merge the processed models. The merging code is in the `merge/` directory, partially adapted from [MergeLLM](https://github.com/yule-BUAA/MergeLLM).  
+
+**Supported Methods:**  
+- **Slerp Merging**  
+- **Task Arithmetic**  
+
+**Example Commands:**  
+```bash
+# Slerp Merging
+python merge_llms.py   --models_to_merge FT_LLM1 FT_LLM2   --pretrained_model_name Base_LLM   --slerp_t 0.4   --dot_threshold 0.9995   --merging_method_name slerp_merging
+
+# Task Arithmetic
+python merge_llms.py   --models_to_merge FT_LLM1 FT_LLM2   --pretrained_model_name Base_LLM   --scaling_coefficient 1.0   --merging_method_name task_arithmetic
+```
+
+**Key Arguments:**  
+- `--models_to_merge`: Fine-tuned models to be merged (paths or names).  
+- `--pretrained_model_name`: Base model for alignment of weight space.  
+- `--merging_method_name`: Fusion method (`slerp_merging` or `task_arithmetic`).  
+- `--slerp_t`: Interpolation factor (0–1).  
+- `--dot_threshold`: Numerical stability threshold for Slerp.  
+- `--scaling_coefficient`: Scaling factor for Task Arithmetic.  
+
+---
+
+### Step 3. Evaluation Script Configuration
+
+Before running the evaluation, configure the script parameters:  
+
+- **Model Path**:  
+  In the `if __name__ == "__main__"` section, set the path of the merged or aligned model to evaluate.  
+  ```python
+  model_path = "meta-ai/llama-2-7b-chat-huggingface"
+  ```
+
+- **Dataset Paths**:  
+  Update the `dataset_paths` list in the script to include JSON-formatted datasets.  
+  ```python
+  "./Proposed-PII-email.json"
+  ```
+
+- **PII Extraction Patterns**:  
+  Define regex patterns for each dataset in the `patterns` dictionary.  
+  ```python
+  "Proposed-PII-email.json": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+  ```
+
+- **Output File**:  
+  Set the `output_file` variable to specify where to save evaluation results (JSON format).  
+
+---
+
+### Step 4. Run Evaluation
+
+Navigate to the `evaluate/` folder and run the corresponding evaluation script.  
+
+Example (for email PII evaluation):  
+```bash
+cd evaluate
+python evaluate-email.py
+```
+
+Replace `evaluate-email.py` with the script that matches your target dataset (e.g., `evaluate-phone.py`, `evaluate-address.py`, etc.). 
+**Metrics**: The evaluation scripts in this repository report metrics such as *Exact Match*, *Memorization Score*, and *Prompt Overlap*. For detailed definitions and explanations, please refer to our paper.  
 
 ### I. Prerequisites
 
@@ -163,5 +306,6 @@ If you have any questions, suggestions, or want to contribute code while using t
 ## License
 
 This project is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). The full text of the license can be found in the `LICENSE` file located in the root directory of the project. 
+
 
 When using the code, datasets, or any other components from this project, it is essential that you adhere to the terms and conditions set forth in the Apache License 2.0. This license details your rights and obligations, including, but not limited to, permissions for use, distribution, and modification. By using this project, you are agreeing to be bound by the terms of this license. 
